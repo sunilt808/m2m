@@ -1,0 +1,64 @@
+import tensorflow as tf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import random
+(X_train, y_train), (X_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()
+plt.imshow( X_train[0],cmap='grey')
+
+W_grid = 15
+L_grid = 15
+num_images_to_display = W_grid * L_grid
+fig, axes = plt.subplots(L_grid, W_grid, figsize = (17,17))
+axes = axes.ravel() 
+for i in range(num_images_to_display):
+    index=np.random.randint(0, len(X_train) )
+    axes[i].imshow(X_train[index])
+    axes[i].set_title(y_train[index], fontsize = 8)
+    axes[i].axis('off')
+plt.subplots_adjust(hspace=0.4)
+
+X_train = X_train / 255
+X_test = X_test / 255
+noise_factor = 0.5
+X_train_noisy = X_train + noise_factor * np.random.randn(*X_train.shape)
+X_test_noisy = X_test + noise_factor * np.random.randn(*X_test.shape)
+
+X_train_noisy = np.clip(X_train_noisy, 0., 1.)
+X_test_noisy = np.clip(X_test_noisy, 0., 1.)
+
+plt.imshow(X_train_noisy[0], cmap="gray")
+
+autoencoder = tf.keras.models.Sequential([
+    #Encoder
+    tf.keras.layers.Conv2D(filters=16, kernel_size=(3,3),strides=2, padding="same", input_shape=(28, 28, 1)),
+    tf.keras.layers.Conv2D(filters=8, kernel_size=(3,3),strides=2, padding="same"),
+
+    #Encoded image
+    tf.keras.layers.Conv2D(filters=8, kernel_size=(3,3),strides=1, padding="same"),
+
+    #Decoder
+    tf.keras.layers.Conv2DTranspose(filters=16,kernel_size=(3,3), strides=2, padding="same"),
+    tf.keras.layers.Conv2DTranspose(filters=1,kernel_size=(3,3), strides=2, activation='sigmoid', padding="same")
+])
+
+autoencoder.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=0.001))
+autoencoder.summary()
+autoencoder.fit(X_train_noisy.reshape(-1, 28, 28, 1), X_train.reshape(-1, 28, 28, 1), epochs=10,batch_size=200,
+                validation_data=(X_test_noisy.reshape(-1, 28, 28,1), X_test.reshape(-1, 28, 28, 1)))
+
+evaluation = autoencoder.evaluate(X_test_noisy.reshape(-1, 28, 28,1), X_test.reshape(-1, 28, 28, 1))
+print('Test Accuracy : {:.3f}'.format(evaluation))
+predicted = autoencoder.predict(X_test_noisy[:10].reshape(-1, 28, 28, 1))
+predicted.shape
+
+fig, axes = plt.subplots(nrows=2, ncols=10, figsize=(20,4))
+axes = axes.ravel() 
+for i in range(10):
+    axes[i].imshow(X_test_noisy[i].reshape(28, 28), cmap='gray')
+    axes[i+10].imshow(predicted[i].reshape(28, 28), cmap='gray')
+    axes[i].axis('off')
+    axes[i+10].axis('off')
+   
+
