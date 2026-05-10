@@ -1,0 +1,65 @@
+#gan
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import *
+from tensorflow.keras.optimizers import Adam
+import numpy as np
+(X_train, _), (_, _) = tf.keras.datasets.mnist.load_data()
+
+X_train = X_train.reshape(60000,28,28,1) / 127.5 - 1
+
+dataset = tf.data.Dataset.from_tensor_slices(X_train).shuffle(60000).batch(256)
+
+generator = Sequential([
+    Dense(128, input_shape=(100,)),
+    LeakyReLU(0.2),
+    Dense(28*28, activation='tanh'),
+    Reshape((28,28,1))
+])
+
+discriminator = Sequential([
+    Flatten(input_shape=(28,28,1)),
+    Dense(128),
+    LeakyReLU(0.2),
+    Dense(1, activation='sigmoid')
+])
+discriminator.compile(
+    loss='binary_crossentropy',
+    optimizer=Adam(0.0002),
+    metrics=['accuracy']
+)
+
+discriminator.trainable = False
+gan = Sequential([generator, discriminator])
+gan.compile(loss='binary_crossentropy',optimizer=Adam(0.0002))
+epochs = 1000
+batch_size = 128
+
+real = np.ones((batch_size,1))
+fake = np.zeros((batch_size,1))
+
+for epoch in range(epochs):
+
+    idx = np.random.randint(0, X_train.shape[0], batch_size)
+
+    real_imgs = X_train[idx]
+
+    noise = np.random.normal(0,1,(batch_size,100))
+
+    fake_imgs = generator.predict(noise, verbose=0)
+
+    discriminator.train_on_batch(real_imgs, real)
+    discriminator.train_on_batch(fake_imgs, fake)
+
+    gan.train_on_batch(noise, real)
+  
+noise = np.random.normal(0,1,(16,100))
+images = generator.predict(noise, verbose=0)
+fig,axes = plt.subplots(4,4)
+axes = axes.ravel() 
+for i in range(16):
+    axes[i].imshow(images[i], cmap='gray')
+    axes[i].axis('off')
+
+plt.show()
